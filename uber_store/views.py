@@ -4,10 +4,10 @@ from django.shortcuts import render, redirect
 
 from django.urls import reverse
 
-from uber_eat.models import Order
+from uber_eat.models import Order,Product
 from uber_store import forms, models
 from django.contrib.auth.models import User
-from uber_eat.views import show_product
+# from uber_eat.views import show_product
 from django.contrib.auth.decorators import login_required
 
 
@@ -67,21 +67,29 @@ def show_product_img(ProductList):
     q1.connector = 'OR'
     for product in ProductList:
         q1.children.append(('P_id', product.Pid))
-    PhotoList = models.Photo.objects.filter(q1).order_by('P_id')
-    return PhotoList
+    try:
+        PhotoList = models.Photo.objects.filter(q1).order_by('P_id')
+        return PhotoList
+    except:
+        print("pp")
+        messages.add_message( messages.INFO, '頁面錯誤')
+        return redirect('/')
+    
 
 
 @login_required(login_url='/uber_eat/login/')
 def store_page(request):
     if request.user.is_authenticated:
         username = request.user.username
-        user = User.objects.get(username=username)
+        userinfo = User.objects.get(username=username)
         try:
-            Storeinfo = models.Store.objects.get(user=user)
+            Storeinfo = models.Store.objects.get(user=userinfo)
             if Storeinfo is not None:
                 Sname = Storeinfo.Sname
-                ProductList = show_product(Storeinfo.Sid)
-                PhotoList = show_product_img(ProductList)
+                ProductList = Product.objects.filter(S_id=Storeinfo.Sid).order_by('Pid')
+                if request.method == 'POST':
+                    Storeinfo.Stype = request.POST['Stype']
+                    Storeinfo.save()
         except:
             pass
     return render(request, 'store/Edit_product.html', locals())
@@ -125,8 +133,6 @@ def add_store_post(request):
             else:
                 form = forms.SignUpForm()
     return render(request, 'registration/store_registration.html', locals())
-    # Store.objects.create(Sname='test', Saddress='At Earth', Sphone='123456789')
-
 
 @login_required(login_url='/uber_eat/login/')
 def upload_product_img(request):
@@ -153,6 +159,7 @@ def upload_store_img(request):
         if form.is_valid():
             Storeinfo.image = request.FILES['image']
             Storeinfo.save()
+            imgPer(Storeinfo.image)
             return redirect('/uber_store')
     context = {
         'form': form
@@ -186,7 +193,7 @@ def store_get_order(request):
 
 def imgPer(file):
     from PIL import Image
-    strin = 'D:/lessions/DB_final_project/media/'
+    strin = r"C:\Users\guanlin\Desktop\DB_final_project-main\DB_final_project\media/"
     strin += str(file)
     print(strin)
     img = Image.open(strin)
